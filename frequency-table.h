@@ -36,6 +36,6 @@
 #define FREQ_PITCH_C_SHARP
 #define FREQ_PITCH_C_FLAT
 
-extern int get_cpitch_freq(char pitch);
+//extern int get_cpitch_freq(char pitch);
 
 #endif /* ----- #ifndef _FREQUENCY_TABLE_H__INC  ----- */

@@ -46,23 +46,65 @@ void reset_keypress (void)
     return;
 }
 
-int get_cpitch_freq(char pitch)
+int get_cpitch_freq(char pitch, int level, int symbol)
 {
     switch (pitch) {
         case 'A':
-            return FREQ_PITCH_A;
+            if (level == 0)
+                return FREQ_PITCH_A;
+            else if (level == -1)
+                return FREQ_PITCH_LA;
+            else if (level == 1)
+                return FREQ_PITCH_HA;
+
         case 'B':
-            return FREQ_PITCH_B;
+            if (level == 0)
+                return FREQ_PITCH_B;
+            else if (level == -1)
+                return FREQ_PITCH_LB;
+            else if (level == 1)
+                return FREQ_PITCH_HB;
+
         case 'C':
-            return FREQ_PITCH_C;
+            if (level == 0)
+                return FREQ_PITCH_C;
+            else if (level == -1)
+                return FREQ_PITCH_LC;
+            else if (level == 1)
+                return FREQ_PITCH_HC;
+
         case 'D':
-            return FREQ_PITCH_D;
+            if (level == 0)
+                return FREQ_PITCH_D;
+            else if (level == -1)
+                return FREQ_PITCH_LD;
+            else if (level == 1)
+                return FREQ_PITCH_HD;
+            
         case 'E':
-            return FREQ_PITCH_E;
+            if (level == 0)
+                return FREQ_PITCH_E;
+            else if (level == -1)
+                return FREQ_PITCH_LE;
+            else if (level == 1)
+                return FREQ_PITCH_HE;
+
         case 'F':
-            return FREQ_PITCH_F;
+            if (level == 0)
+                return FREQ_PITCH_F;
+            else if (level == -1)
+                return FREQ_PITCH_LF;
+            else if (level == 1)
+                return FREQ_PITCH_HF;
+
         case 'G':
-            return FREQ_PITCH_G;
+            if (level == 0)
+                return FREQ_PITCH_G;
+            else if (level == -1)
+                return FREQ_PITCH_LG;
+            else if (level == 1)
+                return FREQ_PITCH_HG;
+
         default:
             return FREQ_PITCH_C;
     }
@@ -81,10 +123,9 @@ static int period_event = 0; /* produce poll event after each period */
 static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
+static int delay_time = 0;
 
-static void generate_sine(const snd_pcm_channel_area_t *areas,
-        snd_pcm_uframes_t offset,
-        int count, double *_phase)
+static void generate_sine(const snd_pcm_channel_area_t *areas, snd_pcm_uframes_t offset, int count, double *_phase)
 {
     static double max_phase = 2. * M_PI;
     double phase = *_phase;
@@ -293,14 +334,12 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
  */
 static int write_loop(snd_pcm_t *handle, signed short *samples, snd_pcm_channel_area_t *areas)
 {
-    unsigned char i=10;
     double phase = 0;
     signed short *ptr;
     int err, cptr;
 
 
-    while (i--)
-    {
+    while (delay_time--) {
         generate_sine(areas, 0, period_size, &phase);
         ptr = samples;
         cptr = period_size;
@@ -319,7 +358,10 @@ static int write_loop(snd_pcm_t *handle, signed short *samples, snd_pcm_channel_
             cptr -= err;
         }
     }
+
+    return 0;
 }
+
 /*
  * Transfer method - write and wait for room in buffer using poll
  */
@@ -745,13 +787,50 @@ static struct transfer_method transfer_methods[] = {
     { "direct_write", SND_PCM_ACCESS_MMAP_INTERLEAVED, direct_write_loop },
     { NULL, SND_PCM_ACCESS_RW_INTERLEAVED, NULL }
 };
+
+struct music_note {
+    int pitch;
+    int level;
+    int delay;
+    int symbol;
+};
+FILE *mfile;
+/* open_music_file - 
+ *
+ */
+void open_music_file(void)
+{
+    mfile = fopen("music.in", "r");
+
+    return;
+} /* -----  end of function open_music_file  ----- */
+
+/* close_music_file - 
+ *
+ */
+void close_music_file(void)
+{
+    fclose(mfile);
+    return;
+} /* -----  end of function close_music_file  ----- */
+
+/* read_music_file - 
+ *
+ */
+int read_music_file(struct music_note *note)
+{
+    //return fgetc(mfile);
+    return fscanf(mfile, "%c,%d,%d,%d;", (char *)&note->pitch, &note->level, &note->delay, &note->symbol);
+} /* -----  end of function read_music_file  ----- */
+
 /* main - Entry
  *
  */
 int main(int argc, char *argv[])
 {
+    struct music_note note;
     snd_pcm_t *handle;
-    int err, morehelp;
+    int err;
     snd_pcm_hw_params_t *hwparams;
     snd_pcm_sw_params_t *swparams;
     int method = 0;
@@ -760,7 +839,6 @@ int main(int argc, char *argv[])
     snd_pcm_channel_area_t *areas;
     snd_pcm_hw_params_alloca(&hwparams);
     snd_pcm_sw_params_alloca(&swparams);
-    morehelp = 0;
 
 
     err = snd_output_stdio_attach(&output, stdout, 0);
@@ -802,6 +880,28 @@ int main(int argc, char *argv[])
         areas[chn].step = channels * snd_pcm_format_physical_width(format);
     }
 
+#if 1
+    open_music_file();
+    while (1) {
+        err = read_music_file(&note);
+        if (err == -1)
+            break;
+        if (err != 4)
+            continue;
+
+        freq = get_cpitch_freq(toupper((char)note.pitch), note.level, note.symbol);
+
+        freq = get_cpitch_freq(toupper((char)note.pitch), note.level, note.symbol);
+        delay_time = note.delay/2;
+        printf("input:%c\n", note.pitch);
+        //printf("input:%d\n", c);
+
+        err = transfer_methods[method].transfer_loop(handle, samples, areas);
+        if (err < 0)
+            printf("Transfer failed: %s\n", snd_strerror(err));
+    }
+    close_music_file();
+#else
     set_keypress();
     while (1) {
         char c;
@@ -817,6 +917,7 @@ int main(int argc, char *argv[])
             printf("Transfer failed: %s\n", snd_strerror(err));
     }
     reset_keypress();
+#endif
 
 
     free(areas);
