@@ -1,15 +1,17 @@
 /*
- *       Filename:  main.c
+ *       Filename:  pcm.c
  *
- *    Description:  Play music
+ *    Description:  Copy from alsa.
+ *
  *
  *         Author:  chenchacha, 
- *        Created:  03/22/2015 10:29:32 PM
+ *        Created:  2015年03月24日 11时00分03秒
+ */
+/*
+ * This small demo sends a simple sinusoidal wave to your speakers.
  */
 #include <stdio.h>
-#include <ctype.h>
-#include <alsa/asoundlib.h>
-#include "frequency-table.h"
+#include <stdlib.h>
 #include <string.h>
 #include <sched.h>
 #include <errno.h>
@@ -17,57 +19,6 @@
 #include "alsa/asoundlib.h"
 #include <sys/time.h>
 #include <math.h>
-
-#include <termios.h>
-#include <string.h>
-
-static struct termios stored_settings;
-
-void set_keypress (void)
-{
-    struct termios new_settings;
-
-    tcgetattr (0, &stored_settings);
-
-    new_settings = stored_settings;
-
-    /* Disable canonical mode, and set buffer size to 1 byte */
-    new_settings.c_lflag &= (~ICANON);
-    new_settings.c_cc[VTIME] = 0;
-    new_settings.c_cc[VMIN] = 1;
-
-    tcsetattr (0, TCSANOW, &new_settings);
-    return;
-}
-
-void reset_keypress (void)
-{
-    tcsetattr (0, TCSANOW, &stored_settings);
-    return;
-}
-
-int get_cpitch_freq(char pitch)
-{
-    switch (pitch) {
-        case 'A':
-            return FREQ_PITCH_A;
-        case 'B':
-            return FREQ_PITCH_B;
-        case 'C':
-            return FREQ_PITCH_C;
-        case 'D':
-            return FREQ_PITCH_D;
-        case 'E':
-            return FREQ_PITCH_E;
-        case 'F':
-            return FREQ_PITCH_F;
-        case 'G':
-            return FREQ_PITCH_G;
-        default:
-            return FREQ_PITCH_C;
-    }
-}
-
 static char *device = "plughw:0,0"; /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16; /* sample format */
 static unsigned int rate = 44100; /* stream rate */
@@ -291,16 +242,14 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 /*
  * Transfer method - write only
  */
-static int write_loop(snd_pcm_t *handle, signed short *samples, snd_pcm_channel_area_t *areas)
+static int write_loop(snd_pcm_t *handle,
+        signed short *samples,
+        snd_pcm_channel_area_t *areas)
 {
-    unsigned char i=10;
     double phase = 0;
     signed short *ptr;
     int err, cptr;
-
-
-    while (i--)
-    {
+    while (1) {
         generate_sine(areas, 0, period_size, &phase);
         ptr = samples;
         cptr = period_size;
@@ -745,11 +694,54 @@ static struct transfer_method transfer_methods[] = {
     { "direct_write", SND_PCM_ACCESS_MMAP_INTERLEAVED, direct_write_loop },
     { NULL, SND_PCM_ACCESS_RW_INTERLEAVED, NULL }
 };
-/* main - Entry
- *
- */
+static void help(void)
+{
+    int k;
+    printf(
+            "Usage: pcm [OPTION]... [FILE]...\n"
+            "-h,--help help\n"
+            "-D,--device playback device\n"
+            "-r,--rate stream rate in Hz\n"
+            "-c,--channels count of channels in stream\n"
+            "-f,--frequency sine wave frequency in Hz\n"
+            "-b,--buffer ring buffer size in us\n"
+            "-p,--period period size in us\n"
+            "-m,--method transfer method\n"
+            "-o,--format sample format\n"
+            "-v,--verbose show the PCM setup parameters\n"
+            "-n,--noresample do not resample\n"
+            "-e,--pevent enable poll event after each period\n"
+            "\n");
+    printf("Recognized sample formats are:");
+    for (k = 0; k < SND_PCM_FORMAT_LAST; ++k) {
+        const char *s = snd_pcm_format_name(k);
+        if (s)
+            printf(" %s", s);
+    }
+    printf("\n");
+    printf("Recognized transfer methods are:");
+    for (k = 0; transfer_methods[k].name; k++)
+        printf(" %s", transfer_methods[k].name);
+    printf("\n");
+}
 int main(int argc, char *argv[])
 {
+    struct option long_option[] =
+    {
+        {"help", 0, NULL, 'h'},
+        {"device", 1, NULL, 'D'},
+        {"rate", 1, NULL, 'r'},
+        {"channels", 1, NULL, 'c'},
+        {"frequency", 1, NULL, 'f'},
+        {"buffer", 1, NULL, 'b'},
+        {"period", 1, NULL, 'p'},
+        {"method", 1, NULL, 'm'},
+        {"format", 1, NULL, 'o'},
+        {"verbose", 1, NULL, 'v'},
+        {"noresample", 1, NULL, 'n'},
+        {"pevent", 1, NULL, 'e'},
+        {NULL, 0, NULL, 0},
+    };
     snd_pcm_t *handle;
     int err, morehelp;
     snd_pcm_hw_params_t *hwparams;
@@ -761,8 +753,81 @@ int main(int argc, char *argv[])
     snd_pcm_hw_params_alloca(&hwparams);
     snd_pcm_sw_params_alloca(&swparams);
     morehelp = 0;
-
-
+    while (1) {
+        int c;
+        if ((c = getopt_long(argc, argv, "hD:r:c:f:b:p:m:o:vne", long_option, NULL)) < 0)
+            break;
+        switch (c) {
+            case 'h':
+                morehelp++;
+                break;
+            case 'D':
+                device = strdup(optarg);
+                break;
+            case 'r':
+                rate = atoi(optarg);
+                rate = rate < 4000 ? 4000 : rate;
+                rate = rate > 196000 ? 196000 : rate;
+                break;
+            case 'c':
+                channels = atoi(optarg);
+                channels = channels < 1 ? 1 : channels;
+                channels = channels > 1024 ? 1024 : channels;
+                break;
+            case 'f':
+                freq = atoi(optarg);
+                freq = freq < 50 ? 50 : freq;
+                freq = freq > 5000 ? 5000 : freq;
+                break;
+            case 'b':
+                buffer_time = atoi(optarg);
+                buffer_time = buffer_time < 1000 ? 1000 : buffer_time;
+                buffer_time = buffer_time > 1000000 ? 1000000 : buffer_time;
+                break;
+            case 'p':
+                period_time = atoi(optarg);
+                period_time = period_time < 1000 ? 1000 : period_time;
+                period_time = period_time > 1000000 ? 1000000 : period_time;
+                break;
+            case 'm':
+                for (method = 0; transfer_methods[method].name; method++)
+                    if (!strcasecmp(transfer_methods[method].name, optarg))
+                        break;
+                if (transfer_methods[method].name == NULL)
+                    method = 0;
+                break;
+            case 'o':
+                for (format = 0; format < SND_PCM_FORMAT_LAST; format++) {
+                    const char *format_name = snd_pcm_format_name(format);
+                    if (format_name)
+                        if (!strcasecmp(format_name, optarg))
+                            break;
+                }
+                if (format == SND_PCM_FORMAT_LAST)
+                    format = SND_PCM_FORMAT_S16;
+                if (!snd_pcm_format_linear(format) &&
+                        !(format == SND_PCM_FORMAT_FLOAT_LE ||
+                            format == SND_PCM_FORMAT_FLOAT_BE)) {
+                    printf("Invalid (non-linear/float) format %s\n",
+                            optarg);
+                    return 1;
+                }
+                break;
+            case 'v':
+                verbose = 1;
+                break;
+            case 'n':
+                resample = 0;
+                break;
+            case 'e':
+                period_event = 1;
+                break;
+        }
+    }
+    if (morehelp) {
+        help();
+        return 0;
+    }
     err = snd_output_stdio_attach(&output, stdout, 0);
     if (err < 0) {
         printf("Output failed: %s\n", snd_strerror(err));
@@ -801,27 +866,11 @@ int main(int argc, char *argv[])
         areas[chn].first = chn * snd_pcm_format_physical_width(format);
         areas[chn].step = channels * snd_pcm_format_physical_width(format);
     }
-
-    set_keypress();
-    while (1) {
-        char c;
-        c = getc(stdin);
-        if (c == '\n')
-            break;
-
-        freq = get_cpitch_freq(toupper(c));
-        printf("input:%c\n", c);
-
-        err = transfer_methods[method].transfer_loop(handle, samples, areas);
-        if (err < 0)
-            printf("Transfer failed: %s\n", snd_strerror(err));
-    }
-    reset_keypress();
-
-
+    err = transfer_methods[method].transfer_loop(handle, samples, areas);
+    if (err < 0)
+        printf("Transfer failed: %s\n", snd_strerror(err));
     free(areas);
     free(samples);
     snd_pcm_close(handle);
- 
-    return EXIT_SUCCESS;
-} /* ----------  end of function main  ---------- */
+    return 0;
+}

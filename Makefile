@@ -5,16 +5,17 @@ COMPILE ?=
 CC := $(COMPILE)gcc
 LD := $(COMPILE)ld
 OBJDUMP := $(COMPILE)objdump
-LD_FLAG := -lm -lc -lgcc -lasound
+LD_FLAG := -lm -lc  -lasound
 CC_FLAG := $(LD_FLAG)
 LD_INC += /usr/include/alsa
 
 # compile object
 objs += main.o
 #objs += pcm_min.c
+#objs += pcm.o
 
 muslab.bin: $(objs)
-	$(CC) -oS $(LD_FLAG) -o $@ $(objs)
+	$(CC) -oS -o $@ $(objs) $(LD_FLAG) 
 	$(OBJDUMP) -d $@ > $@.asm
 
 %.o:%.c
@@ -26,7 +27,7 @@ tag:
 	ctags -R
 	find $(pwd) -name "*.h" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.[Ss]" -o -name "*.java" > cscope.files
 	find $(LD_INC) -name "*.h" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.[Ss]" -o -name "*.java" >> cscope.files
-	   cscope -qbkv -i cscope.files
+	cscope -qbkv -i cscope.files
 
 .PHONY:clean
 clean:
