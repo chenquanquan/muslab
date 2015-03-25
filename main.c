@@ -9,17 +9,19 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <alsa/asoundlib.h>
-#include "frequency-table.h"
 #include <string.h>
 #include <sched.h>
 #include <errno.h>
 #include <getopt.h>
-#include "alsa/asoundlib.h"
+#include <alsa/asoundlib.h>
 #include <sys/time.h>
 #include <math.h>
 
 #include <termios.h>
 #include <string.h>
+
+#include "frequency-table.h"
+#include "music-file.h"
 
 static struct termios stored_settings;
 
@@ -46,197 +48,6 @@ void reset_keypress (void)
     return;
 }
 
-int get_cpitch_freq(char pitch, int level)
-{
-    switch (pitch) {
-        case 'A':
-            if (level == 0)
-                return FREQ_PITCH_A;
-            else if (level == -1)
-                return FREQ_PITCH_LA;
-            else if (level == 1)
-                return FREQ_PITCH_HA;
-
-        case 'B':
-            if (level == 0)
-                return FREQ_PITCH_B;
-            else if (level == -1)
-                return FREQ_PITCH_LB;
-            else if (level == 1)
-                return FREQ_PITCH_HB;
-
-        case 'C':
-            if (level == 0)
-                return FREQ_PITCH_C;
-            else if (level == -1)
-                return FREQ_PITCH_LC;
-            else if (level == 1)
-                return FREQ_PITCH_HC;
-
-        case 'D':
-            if (level == 0)
-                return FREQ_PITCH_D;
-            else if (level == -1)
-                return FREQ_PITCH_LD;
-            else if (level == 1)
-                return FREQ_PITCH_HD;
-            
-        case 'E':
-            if (level == 0)
-                return FREQ_PITCH_E;
-            else if (level == -1)
-                return FREQ_PITCH_LE;
-            else if (level == 1)
-                return FREQ_PITCH_HE;
-
-        case 'F':
-            if (level == 0)
-                return FREQ_PITCH_F;
-            else if (level == -1)
-                return FREQ_PITCH_LF;
-            else if (level == 1)
-                return FREQ_PITCH_HF;
-
-        case 'G':
-            if (level == 0)
-                return FREQ_PITCH_G;
-            else if (level == -1)
-                return FREQ_PITCH_LG;
-            else if (level == 1)
-                return FREQ_PITCH_HG;
-
-        default:
-            return FREQ_PITCH_C;
-    }
-}
-
-int get_cpitch_sharp_freq(char pitch, int level)
-{
-    switch (pitch) {
-        case 'A':
-            if (level == 0)
-                return FREQ_PITCH_A_SHARP;
-            else if (level == -1)
-                return FREQ_PITCH_LA_SHARP;
-            else if (level == 1)
-                return FREQ_PITCH_HA_SHARP;
-
-        case 'B':
-            if (level == 0)
-                return FREQ_PITCH_HC;
-            else if (level == -1)
-                return FREQ_PITCH_C;
-            else if (level == 1)
-                return FREQ_PITCH_HHC;
-
-        case 'C':
-            if (level == 0)
-                return FREQ_PITCH_C_SHARP;
-            else if (level == -1)
-                return FREQ_PITCH_LC_SHARP;
-            else if (level == 1)
-                return FREQ_PITCH_HC_SHARP;
-
-        case 'D':
-            if (level == 0)
-                return FREQ_PITCH_D_SHARP;
-            else if (level == -1)
-                return FREQ_PITCH_LD_SHARP;
-            else if (level == 1)
-                return FREQ_PITCH_HD_SHARP;
-            
-        case 'E':
-            if (level == 0)
-                return FREQ_PITCH_F;
-            else if (level == -1)
-                return FREQ_PITCH_LF;
-            else if (level == 1)
-                return FREQ_PITCH_HF;
-
-        case 'F':
-            if (level == 0)
-                return FREQ_PITCH_F_SHARP;
-            else if (level == -1)
-                return FREQ_PITCH_LF_SHARP;
-            else if (level == 1)
-                return FREQ_PITCH_HF_SHARP;
-
-        case 'G':
-            if (level == 0)
-                return FREQ_PITCH_G_SHARP;
-            else if (level == -1)
-                return FREQ_PITCH_LG_SHARP;
-            else if (level == 1)
-                return FREQ_PITCH_HG_SHARP;
-
-        default:
-            return FREQ_PITCH_C;
-    }
-}
-
-int get_cpitch_flat_freq(char pitch, int level)
-{
-    switch (pitch) {
-        case 'A':
-            if (level == 0)
-                return FREQ_PITCH_A_FLAT;
-            else if (level == -1)
-                return FREQ_PITCH_LA_FLAT;
-            else if (level == 1)
-                return FREQ_PITCH_HA_FLAT;
-
-        case 'B':
-            if (level == 0)
-                return FREQ_PITCH_B_FLAT;
-            else if (level == -1)
-                return FREQ_PITCH_LB_FLAT;
-            else if (level == 1)
-                return FREQ_PITCH_HB_FLAT;
-
-        case 'C':
-            if (level == 0)
-                return FREQ_PITCH_B;
-            else if (level == -1)
-                return FREQ_PITCH_LLB;
-            else if (level == 1)
-                return FREQ_PITCH_HB;
-
-        case 'D':
-            if (level == 0)
-                return FREQ_PITCH_D_FLAT;
-            else if (level == -1)
-                return FREQ_PITCH_LD_FLAT;
-            else if (level == 1)
-                return FREQ_PITCH_HD_FLAT;
-            
-        case 'E':
-            if (level == 0)
-                return FREQ_PITCH_E_FLAT;
-            else if (level == -1)
-                return FREQ_PITCH_LE_FLAT;
-            else if (level == 1)
-                return FREQ_PITCH_HE_FLAT;
-
-        case 'F':
-            if (level == 0)
-                return FREQ_PITCH_E;
-            else if (level == -1)
-                return FREQ_PITCH_LE;
-            else if (level == 1)
-                return FREQ_PITCH_HE;
-
-        case 'G':
-            if (level == 0)
-                return FREQ_PITCH_G_FLAT;
-            else if (level == -1)
-                return FREQ_PITCH_LG_FLAT;
-            else if (level == 1)
-                return FREQ_PITCH_HG_FLAT;
-
-        default:
-            return FREQ_PITCH_C;
-    }
-}
 
 static char *device = "plughw:0,0"; /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16; /* sample format */
@@ -916,41 +727,6 @@ static struct transfer_method transfer_methods[] = {
     { NULL, SND_PCM_ACCESS_RW_INTERLEAVED, NULL }
 };
 
-struct music_note {
-    int pitch;
-    int level;
-    int delay;
-    int symbol;
-};
-FILE *mfile;
-/* open_music_file - 
- *
- */
-void open_music_file(void)
-{
-    mfile = fopen("music.in", "r");
-
-    return;
-} /* -----  end of function open_music_file  ----- */
-
-/* close_music_file - 
- *
- */
-void close_music_file(void)
-{
-    fclose(mfile);
-    return;
-} /* -----  end of function close_music_file  ----- */
-
-/* read_music_file - 
- *
- */
-int read_music_file(struct music_note *note)
-{
-    //return fgetc(mfile);
-    return fscanf(mfile, "%c,%d,%d,%d;", (char *)&note->pitch, &note->level, &note->delay, &note->symbol);
-} /* -----  end of function read_music_file  ----- */
-
 /* main - Entry
  *
  */
@@ -1008,7 +784,6 @@ int main(int argc, char *argv[])
         areas[chn].step = channels * snd_pcm_format_physical_width(format);
     }
 
-#if 1
     open_music_file();
     while (1) {
         err = read_music_file(&note);
@@ -1040,23 +815,6 @@ int main(int argc, char *argv[])
     }
     close_music_file();
     printf("\n");
-#else
-    set_keypress();
-    while (1) {
-        char c;
-        c = getc(stdin);
-        if (c == '\n')
-            break;
-
-        freq = get_cpitch_freq(toupper(c));
-        printf("input:%c\n", c);
-
-        err = transfer_methods[method].transfer_loop(handle, samples, areas);
-        if (err < 0)
-            printf("Transfer failed: %s\n", snd_strerror(err));
-    }
-    reset_keypress();
-#endif
 
 
     free(areas);

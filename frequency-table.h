@@ -1,5 +1,5 @@
-#ifndef  _FREQUENCY_TABLE_H__INC
-#define  _FREQUENCY_TABLE_H__INC
+#ifndef  _FREQUENCY_TABLE_H__
+#define  _FREQUENCY_TABLE_H__
 
 #define FREQ_PITCH_LLC
 #define FREQ_PITCH_LLC_SHARP
@@ -81,6 +81,8 @@
 #define FREQ_PITCH_HHA
 #define FREQ_PITCH_HHB
 
-//extern int get_cpitch_freq(char pitch);
+extern int get_cpitch_freq(char pitch, int level);
+extern int get_cpitch_sharp_freq(char pitch, int level);
+extern int get_cpitch_flat_freq(char pitch, int level);
 
-#endif /* ----- #ifndef _FREQUENCY_TABLE_H__INC  ----- */
+#endif /* ----- #ifndef _FREQUENCY_TABLE_H__  ----- */

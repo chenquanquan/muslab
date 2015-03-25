@@ -10,7 +10,7 @@ CC_FLAG := $(LD_FLAG)
 LD_INC += /usr/include/alsa
 
 # compile object
-objs += main.o
+objs += main.o frequency-table.o music-file.o
 #objs += pcm_min.c
 #objs += pcm.o
 
@@ -27,7 +27,7 @@ tag:
 	ctags -R
 	find $(pwd) -name "*.h" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.[Ss]" -o -name "*.java" > cscope.files
 	find $(LD_INC) -name "*.h" -o -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.[Ss]" -o -name "*.java" >> cscope.files
-	cscope -qbkv -i cscope.files
+	cscope -qbv -i cscope.files
 
 .PHONY:clean
 clean:
